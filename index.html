@@ -1,0 +1,129 @@
+// --- ДАННЫЕ ---
+const products = [
+    { id: 1, cat: 'Молоко', name: 'Молоко 3.2%', price: 450, img: '🥛' },
+    { id: 2, cat: 'Хлеб', name: 'Багет французский', price: 180, img: '🥖' },
+    { id: 3, cat: 'Фрукты', name: 'Бананы (кг)', price: 850, img: '🍌' },
+    { id: 4, cat: 'Молоко', name: 'Творог 5%', price: 600, img: '🧀' },
+    { id: 5, cat: 'Напитки', name: 'Кола 1.5л', price: 420, img: '🥤' },
+    { id: 6, cat: 'Фрукты', name: 'Яблоки', price: 550, img: '🍎' },
+];
+
+// Инициализация корзины из LocalStorage или пустой массив
+let cart = JSON.parse(localStorage.getItem('my_market_cart')) || [];
+let currentCat = 'Все';
+let searchText = '';
+
+// --- ЛОГИКА ТОВАРОВ ---
+
+function renderCats() {
+    const cats = ['Все', ...new Set(products.map(p => p.cat))];
+    const menu = document.getElementById('category-menu');
+    menu.innerHTML = cats.map(c => `
+        <button class="cat-btn ${currentCat === c ? 'active' : ''}" onclick="setCat('${c}')">
+            ${c}
+        </button>
+    `).join('');
+}
+
+function setCat(c) {
+    currentCat = c;
+    renderCats();
+    render();
+}
+
+function setSearch(t) {
+    searchText = t.toLowerCase();
+    render();
+}
+
+function render() {
+    const list = document.getElementById('product-list');
+    const filtered = products.filter(p => {
+        const matchCat = currentCat === 'Все' || p.cat === currentCat;
+        const matchSearch = p.name.toLowerCase().includes(searchText);
+        return matchCat && matchSearch;
+    });
+
+    list.innerHTML = filtered.map(p => `
+        <div class="card">
+            <div style="font-size: 50px;">${p.img}</div>
+            <h3>${p.name}</h3>
+            <span class="price">${p.price} ₸</span>
+            <button class="add-btn" onclick="add('${p.name}', ${p.price})">В корзину</button>
+        </div>
+    `).join('');
+}
+
+// --- ЛОГИКА КОРЗИНЫ ---
+
+function add(name, price) {
+    // Добавляем уникальный ID для каждого вхождения товара, чтобы удалять именно его
+    const cartItem = { id: Date.now() + Math.random(), name, price };
+    cart.push(cartItem);
+    saveAndRefresh();
+}
+
+function removeFromCart(id) {
+    cart = cart.filter(item => item.id !== id);
+    saveAndRefresh();
+}
+
+function saveAndRefresh() {
+    localStorage.setItem('my_market_cart', JSON.stringify(cart));
+    updateCart();
+}
+
+function updateCart() {
+    const cartList = document.getElementById('cart-items');
+    const totalEl = document.getElementById('total-price');
+    
+    cartList.innerHTML = cart.map(item => `
+        <div class="cart-item">
+            <span>${item.name}</span>
+            <div>
+                <span style="margin-right: 10px;">${item.price} ₸</span>
+                <button onclick="removeFromCart(${item.id})" style="border:none; background:none; cursor:pointer; color:red;">✕</button>
+            </div>
+        </div>
+    `).join('');
+
+    const total = cart.reduce((sum, item) => sum + item.price, 0);
+    totalEl.innerText = ${total} ₸;
+}
+
+// --- СИМУЛЯЦИЯ КАСПИ ОПЛАТЫ ---
+
+function checkout() {
+    if (cart.length === 0) return alert("Корзина пуста!");
+    
+    const total = cart.reduce((sum, item) => sum + item.price, 0);
+    
+    // Создаем простое модальное окно через темный фон
+    const modal = document.createElement('div');
+    modal.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:flex; align-items:center; justify-content:center; z-index:1000;";
+    modal.innerHTML = `
+        <div style="background:white; padding:30px; border-radius:20px; text-align:center; max-width:300px;">
+            <div style="background:#e31e24; color:white; padding:10px; border-radius:10px; margin-bottom:20px; font-weight:bold;">Kaspi.kz</div>
+            <p>Оплатите по QR</p>
+            <div style="background:#eee; width:200px; height:200px; margin: 0 auto; display:flex; align-items:center; justify-content:center; border: 2px solid #ccc;">
+                 <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=KaspiPay-${total}" alt="QR">
+            </div>
+            <h2 style="margin-top:20px;">${total} ₸</h2>
+            <button id="closeModal" style="margin-top:20px; width:100%; padding:10px; border:none; background:var(--dark); color:white; border-radius:8px; cursor:pointer;">Закрыть</button>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    document.getElementById('closeModal').onclick = () => {
+        document.body.removeChild(modal);
+        cart = [];
+        saveAndRefresh();
+        alert("Оплата прошла успешно! Чек отправлен на почту.");
+    };
+}
+
+// Запуск
+renderCats();
+render();
+updateCart();
